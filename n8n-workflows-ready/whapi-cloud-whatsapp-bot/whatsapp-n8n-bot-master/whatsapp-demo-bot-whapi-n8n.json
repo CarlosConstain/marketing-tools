@@ -1,0 +1,1776 @@
+{
+  "name": "whatsapp-demo-bot-whapi-n8n",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "8794014c-2794-418c-9432-14a27f49b964",
+        "options": {}
+      },
+      "id": "c8e5ab46-df7b-49e7-8885-5ebdef24adfd",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -864,
+        256
+      ],
+      "name": "1️⃣ Receive WhatsApp Message",
+      "webhookId": "8794014c-2794-418c-9432-14a27f49b964"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "message",
+              "name": "message",
+              "value": "={{ $json.body.messages[0] }}",
+              "type": "object"
+            },
+            {
+              "id": "chatId",
+              "name": "chatId",
+              "value": "={{ $json.body.messages[0].chat_id }}",
+              "type": "string"
+            },
+            {
+              "id": "textBody",
+              "name": "textBody",
+              "value": "={{ $json.body.messages[0].text.body }}",
+              "type": "string"
+            },
+            {
+              "id": "fromMe",
+              "name": "fromMe",
+              "value": "={{ $json.body.messages[0].from_me }}",
+              "type": "boolean"
+            },
+            {
+              "id": "commandInput",
+              "name": "commandInput",
+              "value": "={{ $json.body.messages[0].text.body.trim() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "03916062-9ed6-4816-b831-56122c88321f",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -640,
+        256
+      ],
+      "name": "2️⃣ Get Message Info"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "fromMe",
+              "leftValue": "={{ $json.fromMe }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "false"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a6b0d438-e0d1-455b-962a-4bd69ce75a04",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -432,
+        256
+      ],
+      "name": "3️⃣ Ignore Bot's Own Messages"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "isAiCommand",
+                    "leftValue": "={{ $('2️⃣ Get Message Info').item.json.commandInput.toLowerCase() }}",
+                    "rightValue": "/ai ",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ai"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "isNumeric",
+                    "leftValue": "={{ $('2️⃣ Get Message Info').item.json.commandInput }}",
+                    "rightValue": "^\\d+$",
+                    "operator": {
+                      "type": "string",
+                      "operation": "regex"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "numeric"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "3ee532cb-0e3f-434e-998f-2029b7efd31a",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        304,
+        176
+      ],
+      "name": "4️⃣ What Type of Command?"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "aiPrompt",
+              "name": "aiPrompt",
+              "value": "={{ $('2️⃣ Get Message Info').item.json.commandInput.substring(4).trim() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cf71c4dd-155f-4768-b7be-c37eb3931968",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        832,
+        -144
+      ],
+      "name": "Extract AI Question"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "to",
+              "name": "to",
+              "value": "={{ $('2️⃣ Get Message Info').item.json.chatId }}",
+              "type": "string"
+            },
+            {
+              "id": "body",
+              "name": "body",
+              "value": "={{ $json.output[0].content[0].text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "bafc74c8-2c09-4083-8745-45f5daa54f2b",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1376,
+        -144
+      ],
+      "name": "Format AI Answer"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "text",
+                    "leftValue": "={{ $('2️⃣ Get Message Info').item.json.commandInput }}",
+                    "rightValue": "1",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "text"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "image",
+                    "leftValue": "={{ $('2️⃣ Get Message Info').item.json.commandInput }}",
+                    "rightValue": "2",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "image"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "document",
+                    "leftValue": "={{ $('2️⃣ Get Message Info').item.json.commandInput }}",
+                    "rightValue": "3",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "document"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "video",
+                    "leftValue": "={{ $('2️⃣ Get Message Info').item.json.commandInput }}",
+                    "rightValue": "4",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "video"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "contact",
+                    "leftValue": "={{ $('2️⃣ Get Message Info').item.json.commandInput }}",
+                    "rightValue": "5",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "contact"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "product",
+                    "leftValue": "={{ $('2️⃣ Get Message Info').item.json.commandInput }}",
+                    "rightValue": "6",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "product"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "group_create",
+                    "leftValue": "={{ $('2️⃣ Get Message Info').item.json.commandInput }}",
+                    "rightValue": "7",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "group_create"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "group_text",
+                    "leftValue": "={{ $('2️⃣ Get Message Info').item.json.commandInput }}",
+                    "rightValue": "8",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "group_text"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "groups_ids",
+                    "leftValue": "={{ $('2️⃣ Get Message Info').item.json.commandInput }}",
+                    "rightValue": "9",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "groups_ids"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c1ee6170-83d4-44ad-b2d7-18337bf78326",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        832,
+        560
+      ],
+      "name": "5️⃣ Which Number Command? (1-9)"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "to",
+              "name": "to",
+              "value": "={{ $('2️⃣ Get Message Info').item.json.chatId }}",
+              "type": "string"
+            },
+            {
+              "id": "body",
+              "name": "body",
+              "value": "Hi. Send me a number from the list to try a command, or use /AI <your message> to chat with ChatGPT.\\n\\n1. Simple text message\\n2. Send image\\n3. Send document\\n4. Send video\\n5. Send contact\\n6. Send product\\n7. Create group\\n8. Simple text message for the group\\n9. Get the id's of your three groups",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "5431bc9f-eb09-4632-b844-a392ee646333",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        832,
+        176
+      ],
+      "name": "Show Help Menu"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "to",
+              "name": "to",
+              "value": "={{ $('2️⃣ Get Message Info').item.json.chatId }}",
+              "type": "string"
+            },
+            {
+              "id": "body",
+              "name": "body",
+              "value": "Simple text message",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "93388a52-7f25-4da9-89a2-3318c3d87c5e",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1440,
+        208
+      ],
+      "name": "Prepare: Simple Text"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://gate.whapi.cloud/messages/text",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "whapiChannelApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"to\": \"{{ $json.to }}\", \"body\": \"{{ $json.body }}\"}",
+        "options": {}
+      },
+      "id": "2bae8841-319a-4f3a-bb8a-dd83e5c4c82b",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2576,
+        -16
+      ],
+      "name": "📤 Send Text Message",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "fSo9fygV9C5F1SJs",
+          "name": "Whapi Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "to",
+              "name": "to",
+              "value": "={{ $('2️⃣ Get Message Info').item.json.chatId }}",
+              "type": "string"
+            },
+            {
+              "id": "caption",
+              "name": "caption",
+              "value": "Text under the photo.",
+              "type": "string"
+            },
+            {
+              "id": "mediaPath",
+              "name": "mediaPath",
+              "value": "https://upload.wikimedia.org/wikipedia/commons/3/3f/JPEG_example_flower.jpg",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1a5bbd7d-8afa-4947-ac7c-9991ec7ca20f",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1440,
+        368
+      ],
+      "name": "Prepare: Image (Command 2)"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://gate.whapi.cloud/messages/image",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "whapiChannelApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"to\": \"{{ $json.to }}\", \"media\": \"{{ $json.mediaPath }}\", \"caption\": \"{{ $json.caption }}\"}",
+        "options": {}
+      },
+      "id": "c99d6d1a-8fd2-4e6d-997b-ecc1a324cbfc",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1680,
+        368
+      ],
+      "name": "📤 Send Image",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "fSo9fygV9C5F1SJs",
+          "name": "Whapi Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "to",
+              "name": "to",
+              "value": "={{ $('2️⃣ Get Message Info').item.json.chatId }}",
+              "type": "string"
+            },
+            {
+              "id": "caption",
+              "name": "caption",
+              "value": "Text under the document.",
+              "type": "string"
+            },
+            {
+              "id": "mediaPath",
+              "name": "mediaPath",
+              "value": "https://upload.wikimedia.org/wikipedia/commons/2/27/PDF_metadata.pdf",
+              "type": "string"
+            },
+            {
+              "id": "02fb71b0-426b-40a3-8cd5-ba4d490cc5c8",
+              "name": "filename",
+              "value": "Example",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "141d9f6e-edd5-4a9f-8c9f-94e2d21f85e8",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1440,
+        576
+      ],
+      "name": "Prepare: Document (Command 3)"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://gate.whapi.cloud/messages/document",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "whapiChannelApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"to\": \"{{ $json.to }}\", \"media\": \"{{ $json.mediaPath }}\", \"filename\": \"{{ $json.filename }}\", \"caption\": \"{{ $json.caption }}\"}",
+        "options": {}
+      },
+      "id": "b2dc46de-4e71-4a4c-8f77-f1ec44a21d45",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1680,
+        576
+      ],
+      "name": "📤 Send Document",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "fSo9fygV9C5F1SJs",
+          "name": "Whapi Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "to",
+              "name": "to",
+              "value": "={{ $('2️⃣ Get Message Info').item.json.chatId }}",
+              "type": "string"
+            },
+            {
+              "id": "caption",
+              "name": "caption",
+              "value": "Text under the video.",
+              "type": "string"
+            },
+            {
+              "id": "mediaPath",
+              "name": "mediaPath",
+              "value": "https://download.samplelib.com/mp4/sample-5s.mp4",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a9998d5b-6068-4b8a-ae34-b4f324a5a157",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1440,
+        784
+      ],
+      "name": "Prepare: Video (Command 4)"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://gate.whapi.cloud/messages/video",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "whapiChannelApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"to\": \"{{ $json.to }}\", \"media\": \"{{ $json.mediaPath }}\", \"caption\": \"{{ $json.caption }}\"}",
+        "options": {}
+      },
+      "id": "cdc7a84b-9cc1-47ce-be27-63e55c59254f",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1680,
+        784
+      ],
+      "name": "📤 Send Video",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "fSo9fygV9C5F1SJs",
+          "name": "Whapi Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://gate.whapi.cloud/messages/contact",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "whapiChannelApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"to\": \"{{ $json.to }}\", \"name\": \"{{ $json.name }}\", \"vcard\": \"{{ $json.vcard }}\"}",
+        "options": {}
+      },
+      "id": "f4e3f0b3-3898-4a96-9898-98f91a819382",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1680,
+        992
+      ],
+      "name": "📤 Send Contact",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "fSo9fygV9C5F1SJs",
+          "name": "Whapi Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://gate.whapi.cloud/groups",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "whapiChannelApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"subject\": \"{{ $json.subject }}\", \"participants\": [{{ $json.participants }}]}",
+        "options": {}
+      },
+      "id": "c4a119eb-d601-4ca4-8662-4d01ad8d88cc",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1680,
+        1392
+      ],
+      "name": "Create WhatsApp Group",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "fSo9fygV9C5F1SJs",
+          "name": "Whapi Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "to",
+              "name": "to",
+              "value": "={{ $('2️⃣ Get Message Info').item.json.chatId }}",
+              "type": "string"
+            },
+            {
+              "id": "body",
+              "name": "body",
+              "value": "={{ $json.group_id ? `Group created. Group id: ${$json.group_id}. Use it ID in node Prepare: Group Message - before executing command 8` : \"Error\" }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "263a5d5c-3046-41f9-bf43-602e94286899",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1920,
+        1392
+      ],
+      "name": "Format Group Creation Result"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "to",
+              "name": "to",
+              "value": "={{ $env.GROUP_ID }}",
+              "type": "string"
+            },
+            {
+              "id": "body",
+              "name": "body",
+              "value": "Simple text message for the group",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6a89e0a0-c75d-49b3-959b-d3d7c54e2d39",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1440,
+        1600
+      ],
+      "name": "Prepare: Group Message (Command 8)"
+    },
+    {
+      "parameters": {
+        "url": "https://gate.whapi.cloud/groups?count=3",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "whapiChannelApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "0e56d455-0ccc-4aae-95c6-eac596fe9f1c",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1440,
+        1824
+      ],
+      "name": "Get Groups List (Command 9)",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "fSo9fygV9C5F1SJs",
+          "name": "Whapi Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "to",
+              "name": "to",
+              "value": "={{ $('2️⃣ Get Message Info').item.json.message.chat_id }}",
+              "type": "string"
+            },
+            {
+              "id": "body",
+              "name": "body",
+              "value": "={{ \n  ($json.groups && $json.groups.length)\n    ? $json.groups.map(g => `${g.id} - ${String(g.name).replace(/[\\r\\n]+/g, ' ')}`).join('  &  ')\n    : 'No groups'\n}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "88f14980-08df-4f63-a97b-8c64a7087efe",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1664,
+        1824
+      ],
+      "name": "Format Groups List"
+    },
+    {
+      "parameters": {
+        "content": "## WhatsApp Bot Workflow\n\nThis workflow demonstrates a simple WhatsApp bot using Whapi.Cloud API. It receives messages via webhook and responds with various message types (text, image, document, video, contact) or AI-powered responses using OpenAI.\n\n**Features:**\n- Receives incoming WhatsApp messages\n- Routes commands (AI, numeric 1-9, or default help)\n- Sends text, media, contacts, and group management\n- Integrates with OpenAI ChatGPT\n\n**Note:** This workflow uses native n8n nodes (Set, Switch, HTTP Request) without Code nodes for better maintainability.",
+        "height": 352,
+        "width": 624
+      },
+      "id": "3b2a326f-9afc-42e7-ad46-3082cd7639aa",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2096,
+        -640
+      ],
+      "name": "Workflow Overview"
+    },
+    {
+      "parameters": {
+        "content": "## Webhook Trigger\n\nReceives incoming WhatsApp messages from Whapi.Cloud. Configure the webhook URL in [Whapi.Cloud Channel settings](https://panel.whapi.cloud/dashboard) to point to this endpoint.\n\n**Important:** Use the Production URL (not Test URL) when deploying.",
+        "height": 192,
+        "width": 432
+      },
+      "id": "014bb344-781c-4507-8165-758ea99459ef",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1344,
+        208
+      ],
+      "name": "Webhook Info"
+    },
+    {
+      "parameters": {
+        "content": "## Route Command\n\nRoutes incoming messages to appropriate handlers:\n- **AI output:** Messages starting with `/AI ` → OpenAI integration\n- **Numeric output:** Messages with digits (1-9) → Command routing\n- **Default output:** Unknown commands → Help message",
+        "height": 304
+      },
+      "id": "20538a0b-e02e-460e-9dbe-0071dd51e015",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        240,
+        -144
+      ],
+      "name": "Route Command Info"
+    },
+    {
+      "parameters": {
+        "content": "## AI Integration\n\nUses OpenAI ChatGPT (gpt-3.5-turbo) for AI-powered responses. Requires `OPENAI_API_KEY` environment variable.\n\n**Usage:** Send `/AI <your message>` to chat with ChatGPT.",
+        "height": 192,
+        "width": 384
+      },
+      "id": "5c026425-e437-49db-bf4e-e023db9be197",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        832,
+        -368
+      ],
+      "name": "AI Integration Info"
+    },
+    {
+      "parameters": {
+        "content": "## Get Message Info\n\nExtracts data from webhook payload using n8n expressions:\n- `{{ $json.messages[0].chat_id }}` - Chat ID\n- `{{ $json.messages[0].text.body }}` - Message text\n- `{{ $json.messages[0].from_me }}` - Check if from bot\n",
+        "height": 320,
+        "width": 320
+      },
+      "id": "a5282bdd-75d2-4adb-829c-f9e815c7caaa",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -752,
+        432
+      ],
+      "name": "Set Node Info"
+    },
+    {
+      "parameters": {
+        "content": "## Switch Node\n\nRoutes numeric commands (1-9) to specific handlers:\n- **1:** Text message\n- **2:** Image\n- **3:** Document\n- **4:** Video\n- **5:** Contact\n- **6:** Product\n- **7:** Create group\n- **8:** Group text\n- **9:** Get groups list",
+        "height": 336,
+        "width": 288
+      },
+      "id": "263edde8-86a5-4383-b45c-8dc6162ab8b7",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        272,
+        560
+      ],
+      "name": "Switch Node Info"
+    },
+    {
+      "parameters": {
+        "content": "## ⚙️ Setup Instructions\n\n**1. Configure Credentials:**\nWhen using Predefined Credential Type, you only need to provide [your channel](https://panel.whapi.cloud/dashboard) token.\nIf you prefer to use a custom authorization header, configure it as follows:\n- Header Name: `Authorization`\n- Header Value: `Bearer YOUR_TOKEN`\n\n**2. Set Environment Variables (optional):**\n- `OPENAI_API_KEY` - for AI chat (optional)\n- `PRODUCT_ID` - for product command (optional)\n- `GROUP_ID` - for group messages (optional)\n\n**3. Configure Webhook:**\n- Copy Production URL from webhook node\n- Add to [Whapi.Cloud Channel settings](https://panel.whapi.cloud/dashboard) → Webhooks\n- Event: `messages`, Method: `POST`, Mode: `Body`\n\n**4. Using files (optional):**\n- Use links to your photos/videos/documents instead of sample ones. It is important that the file is accessible via a direct link.",
+        "height": 496,
+        "width": 624
+      },
+      "id": "241b62e6-cdab-4175-9596-aed1f2a00887",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2096,
+        -240
+      ],
+      "name": "Setup Instructions"
+    },
+    {
+      "parameters": {
+        "content": "## 📱 How to Use Commands\n\n**AI Chat:**\n- Send: `/AI Tell me a joke`\n- Bot responds with ChatGPT answer\n\n**Numeric Commands:**\n- Send: `1` → Simple text message\n- Send: `2` → Send image\n- Send: `3` → Send PDF document\n- Send: `4` → Send video\n- Send: `5` → Send contact (vCard)\n- Send: `6` → Get product info\n- Send: `7` → Create new group\n- Send: `8` → Send message to group\n- Send: `9` → List your groups\n\n**Help:**\n- Send any unknown text → Shows command list\n\n**You can customize the commands with your own keywords to adapt the bot for your business needs.**",
+        "height": 528,
+        "width": 624
+      },
+      "id": "dfbd12b4-242f-42a7-9c54-02ee2cff65a3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2096,
+        304
+      ],
+      "name": "Command Examples"
+    },
+    {
+      "parameters": {
+        "content": "## Command 1: Simple Text\n\n**User sends:** `1`\n\n**What happens:**\n1. Prepares text message\n2. Sends via Whapi.Cloud\n\n**To customize:** Edit \"Prepare: Simple Text\" node → Change `body` field",
+        "height": 240,
+        "width": 544
+      },
+      "id": "b027c7e4-c78d-49ca-9cb9-e1e9e1846917",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2448,
+        240
+      ],
+      "name": "Command 1 Info"
+    },
+    {
+      "parameters": {
+        "content": "## Command 2: Send Image\n\n**User sends:** `2`\n\n**What happens:**\n1. Prepares image data (URL path, caption)\n2. Sends via Whapi.Cloud\n\n**To customize:** Edit \"Prepare: Image\" node → Change `mediaPath` and `caption`",
+        "height": 256,
+        "width": 544
+      },
+      "id": "421aa7c9-f54d-4ea5-8ef3-17c88341db56",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2448,
+        512
+      ],
+      "name": "Command 2 Info"
+    },
+    {
+      "parameters": {
+        "content": "## Command 3: Send Document\n\n**User sends:** `3`\n\n**What happens:**\n1. Prepares PDF document data (URL path, caption, filename)\n2. Sends via Whapi.Cloud\n\n**To customize:** Edit \"Prepare: Document\" node → Change `mediaPath` and `caption` and `filename`",
+        "height": 256,
+        "width": 544
+      },
+      "id": "676e06e9-d775-4615-89fd-3b2c666e7d41",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2448,
+        800
+      ],
+      "name": "Command 3 Info"
+    },
+    {
+      "parameters": {
+        "content": "## Command 4: Send Video\n\n**User sends:** `4`\n\n**What happens:**\n1. Prepares video data (URL path, caption)\n2. Sends via Whapi.Cloud\n\n**To customize:** Edit \"Prepare: Video\" node → Change `mediaPath` and `caption`",
+        "height": 272,
+        "width": 544
+      },
+      "id": "883cfe5c-2a7e-43a8-a42e-f6616ae62a58",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2448,
+        1088
+      ],
+      "name": "Command 4 Info"
+    },
+    {
+      "parameters": {
+        "content": "## Command 5: Send Contact\n\n**User sends:** `5`\n\n**What happens:**\n1. Prepares contact data (name, vCard). You can use [the vCard generator in the dashboard](https://panel.whapi.cloud/tools/vcard-creation)\n2. Sends contact card via JSON\n\n**To customize:** Edit vCard file or \"Prepare: Contact\" node → Change `name`",
+        "height": 256,
+        "width": 544
+      },
+      "id": "a737a23d-769e-4261-b0df-1fb64609b2da",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2448,
+        1392
+      ],
+      "name": "Command 5 Info"
+    },
+    {
+      "parameters": {
+        "content": "## Command 6: Get Product\n\n**User sends:** `6`\n\nYou need [to find out your ProductID](https://whapi.readme.io/reference/getproducts) before you use this command. \n\n**To customize:**  Edit \"Prepare: Product (Command 6)\" node → Change `ProductID`",
+        "height": 208,
+        "width": 544
+      },
+      "id": "3198c2b3-9924-4c48-8bc9-d77d20c33c52",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2448,
+        1680
+      ],
+      "name": "Command 6 Info"
+    },
+    {
+      "parameters": {
+        "content": "## Command 7: Create Group\n\n**User sends:** `7`\n\n**What happens:**\n1. Extracts sender phone number\n2. Creates new WhatsApp group\n3. Adds the sender and several other numbers as participants\n4. Returns group ID\n\n**To customize:** Edit \"Prepare: Create Group\" node → Change `subject` (group name) and `participants`",
+        "height": 288,
+        "width": 544
+      },
+      "id": "660434e5-e009-4254-b4c9-f94c27fb4444",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2448,
+        1920
+      ],
+      "name": "Command 7 Info"
+    },
+    {
+      "parameters": {
+        "content": "## Command 8: Group Message\n\n**User sends:** `8`\n\n**What happens:**\n1. Prepares message for group\n2. Uses GROUP_ID from environment or provide a specific identifier \n3. Sends message to group\n\n**Requires:** `GROUP_ID` in environment variables\n\n**To customize:** Set `GROUP_ID` in n8n environment variables (get from Command 9)",
+        "height": 304,
+        "width": 544
+      },
+      "id": "a63f7014-fb9b-4871-bb1d-6129ef67ed9a",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2448,
+        2240
+      ],
+      "name": "Command 8 Info"
+    },
+    {
+      "parameters": {
+        "content": "## Command 9: List Groups\n\n**User sends:** `9`\n\n**What happens:**\n1. Gets list of up to 3 groups\n2. Formats group IDs and names\n3. Sends list to user\n\n**Use this:** To get GROUP_ID for Command 8",
+        "height": 256,
+        "width": 544
+      },
+      "id": "6e680d4b-7b58-4800-aa8a-1bcd7d38e178",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2448,
+        2576
+      ],
+      "name": "Command 9 Info"
+    },
+    {
+      "parameters": {
+        "content": "## 🔧 Troubleshooting\n\n**Webhook not receiving messages:**\n- Check webhook URL in Whapi.Cloud settings\n- Verify n8n workflow is active\n- Check webhook node is listening\n\n**Authentication errors:**\n- Verify Header Auth credential is configured\n- Check token is correct (Bearer prefix)\n- No duplicate Authorization headers\n\n**File errors:**\nEnsure that you are using a direct link to the final file/media located on the network and that this link is directly accessible. \n\n**If you have any inquiries or would like to share your experiences with us, please feel free to reach out: [care@whapi.cloud](care@whapi.cloud)**",
+        "height": 416,
+        "width": 624
+      },
+      "id": "9d05c115-6455-408d-b454-3cc714740031",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2096,
+        880
+      ],
+      "name": "Troubleshooting"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-3.5-turbo",
+          "mode": "list",
+          "cachedResultName": "GPT-3.5-TURBO"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "={{ $json.aiPrompt }}"
+            },
+            {
+              "role": "system",
+              "content": "You are an expert conversationalist who responds to users in line with their speech and writing patterns and responds in a way that feels super naturally to human users. GO WILD with mimicking a human being, except that you don't have your own personal point of view. Use emojis, slang, colloquial language, etc. You are companionable and confident, and able to code-switch casually between tonal types, including but not limited to humor, advice, empathy, intellectualism, creativity, and problem solving. Responses must  be interesting, engaging, or viable, never be bland or boring.\n\nMatch the user's tone, formality level (casual, professional, formal, etc.) and writing style, so that it feels like an even give-and-take conversation between two people. Be natural, don't be bland or robotic. Mirror user intentionality and style in an EXTREME way. For example, if they use proper grammar, then you use proper grammar. If they don't use proper grammar, you don't use proper grammar, etc.\n\nYou are mirroring the user but you are NOT taking on their identity or personality or point of view. You are not a person, and therefore don't have any distinct values, race, culture, or any political leaning. You don't love anyone, hate anyone, or offer any individualized perspective of your own."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "store": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        -144
+      ],
+      "id": "c1d8a842-bb48-4998-8b38-0599583774b2",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "4RK9yXyf1ckV71sU",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://gate.whapi.cloud/business/products/{{ $json.ProductID }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "whapiChannelApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"to\": \"{{ $json.to }}\"}",
+        "options": {}
+      },
+      "id": "9cb256ff-bb59-4f8b-ab6b-aac649561290",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1680,
+        1184
+      ],
+      "name": "📤 Send Product",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "fSo9fygV9C5F1SJs",
+          "name": "Whapi Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "to",
+              "name": "to",
+              "value": "={{ $('2️⃣ Get Message Info').item.json.chatId }}",
+              "type": "string"
+            },
+            {
+              "id": "name",
+              "name": "name",
+              "value": "Whapi Test",
+              "type": "string"
+            },
+            {
+              "id": "vcard",
+              "name": "vcard",
+              "value": "=BEGIN:VCARD\\nVERSION:3.0\\nN:Last Name;Example First Name;;;\\nFN:Example First Name Last Name\\nORG:Company Name Department\\nTITLE:Job Title\\nNOTE:null\\nTEL;type=Mobile:+90 850242323\\nitem1.URL:www.youdomain.com\\nitem1.X-ABLabel:OTHER\\nEMAIL;TYPE=Home:test@yourdomain.com\\nitem2.ADR;type=Home:;;Street Example;Istanbul;;;Turkey\\nitem2.X-ABADR:\\nEND:VCARD",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "06a51364-b9ad-4715-a58c-503c84f6318e",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1440,
+        992
+      ],
+      "name": "Prepare: Contact (Command 5)"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "to",
+              "name": "to",
+              "value": "={{ $('2️⃣ Get Message Info').item.json.chatId }}",
+              "type": "string"
+            },
+            {
+              "id": "name",
+              "name": "ProductID",
+              "value": "32626249920293596",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "47f2fb4f-75f5-4ae2-97b2-81a0732a6547",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1440,
+        1184
+      ],
+      "name": "Prepare: Product (Command 6)"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "name",
+              "name": "subject",
+              "value": "My new group",
+              "type": "string"
+            },
+            {
+              "id": "d01ca385-c765-4820-82d2-7272c0333198",
+              "name": "participants",
+              "value": "=\"{{ $('2️⃣ Get Message Info').item.json.message.from }}\", \"351969349935\", \"380956371575\"",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "dfec6065-55da-4638-bcd7-fc9ecef9622e",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1440,
+        1392
+      ],
+      "name": "Prepare: Create Group (Command 7)"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://gate.whapi.cloud/messages/{{ $('2️⃣ Get Message Info').item.json.message.id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "whapiChannelApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -80,
+        192
+      ],
+      "id": "1fbb369f-09da-495f-a75c-493bb00963e5",
+      "name": "✔✔ Mark message as read",
+      "alwaysOutputData": false,
+      "executeOnce": false,
+      "retryOnFail": false,
+      "notesInFlow": false,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "fSo9fygV9C5F1SJs",
+          "name": "Whapi Token"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "1️⃣ Receive WhatsApp Message": {
+      "main": [
+        [
+          {
+            "node": "2️⃣ Get Message Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2️⃣ Get Message Info": {
+      "main": [
+        [
+          {
+            "node": "3️⃣ Ignore Bot's Own Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3️⃣ Ignore Bot's Own Messages": {
+      "main": [
+        [
+          {
+            "node": "✔✔ Mark message as read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4️⃣ What Type of Command?": {
+      "main": [
+        [
+          {
+            "node": "Extract AI Question",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "5️⃣ Which Number Command? (1-9)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Show Help Menu",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract AI Question": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5️⃣ Which Number Command? (1-9)": {
+      "main": [
+        [
+          {
+            "node": "Prepare: Simple Text",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare: Image (Command 2)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare: Document (Command 3)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare: Video (Command 4)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare: Contact (Command 5)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare: Product (Command 6)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare: Create Group (Command 7)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare: Group Message (Command 8)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Groups List (Command 9)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format AI Answer": {
+      "main": [
+        [
+          {
+            "node": "📤 Send Text Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare: Simple Text": {
+      "main": [
+        [
+          {
+            "node": "📤 Send Text Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Show Help Menu": {
+      "main": [
+        [
+          {
+            "node": "📤 Send Text Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📤 Send Text Message": {
+      "main": [
+        []
+      ]
+    },
+    "Prepare: Image (Command 2)": {
+      "main": [
+        [
+          {
+            "node": "📤 Send Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📤 Send Image": {
+      "main": [
+        []
+      ]
+    },
+    "Prepare: Document (Command 3)": {
+      "main": [
+        [
+          {
+            "node": "📤 Send Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📤 Send Document": {
+      "main": [
+        []
+      ]
+    },
+    "Prepare: Video (Command 4)": {
+      "main": [
+        [
+          {
+            "node": "📤 Send Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📤 Send Video": {
+      "main": [
+        []
+      ]
+    },
+    "📤 Send Contact": {
+      "main": [
+        []
+      ]
+    },
+    "Create WhatsApp Group": {
+      "main": [
+        [
+          {
+            "node": "Format Group Creation Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Group Creation Result": {
+      "main": [
+        [
+          {
+            "node": "📤 Send Text Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare: Group Message (Command 8)": {
+      "main": [
+        [
+          {
+            "node": "📤 Send Text Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Groups List (Command 9)": {
+      "main": [
+        [
+          {
+            "node": "Format Groups List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Groups List": {
+      "main": [
+        [
+          {
+            "node": "📤 Send Text Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Format AI Answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare: Contact (Command 5)": {
+      "main": [
+        [
+          {
+            "node": "📤 Send Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare: Product (Command 6)": {
+      "main": [
+        [
+          {
+            "node": "📤 Send Product",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare: Create Group (Command 7)": {
+      "main": [
+        [
+          {
+            "node": "Create WhatsApp Group",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✔✔ Mark message as read": {
+      "main": [
+        [
+          {
+            "node": "4️⃣ What Type of Command?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Istanbul",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "1744664d-157b-4a03-8d86-80c11b41001a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "1ce007a7cd590bfd0b1f08d6d4ee576f18258a921153924d14ffeaa7e10c9796"
+  },
+  "id": "VIKbALozNydovE80",
+  "tags": []
+}

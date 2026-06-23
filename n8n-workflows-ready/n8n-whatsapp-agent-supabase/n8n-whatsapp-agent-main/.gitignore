@@ -1,0 +1,15 @@
+node_modules/
+.env
+*.log
+
+# Archivos temporales de trabajo
+*.json
+!package.json
+*.txt
+*.py
+
+# Claude Code
+.claude/
+
+# Archivos sensibles
+docker-compose.yml

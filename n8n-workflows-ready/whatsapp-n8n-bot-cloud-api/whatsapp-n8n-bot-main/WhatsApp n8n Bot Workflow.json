@@ -1,0 +1,765 @@
+{
+  "name": "Smart WhatsApp Assistant",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": ["messages"],
+        "options": {}
+      },
+      "type": "n8n-nodes-base.whatsAppTrigger",
+      "typeVersion": 1,
+      "position": [-800, 0],
+      "id": "whatsapp-webhook-trigger",
+      "name": "Incoming Message",
+      "webhookId": "unique-webhook-id-001",
+      "credentials": {
+        "whatsAppTriggerApi": {
+          "id": "your-whatsapp-cred-id",
+          "name": "WhatsApp Credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.messages[0].type }}",
+                    "rightValue": "text",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "text_message"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.messages[0].type }}",
+                    "rightValue": "audio",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "voice_message"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.messages[0].type }}",
+                    "rightValue": "image",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "image_message"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.messages[0].type }}",
+                    "rightValue": "document",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "document_message"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [-560, 0],
+      "id": "message-type-router",
+      "name": "Route by Type"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "text-extract-001",
+              "name": "userMessage",
+              "value": "={{ $json.messages[0].text.body }}",
+              "type": "string"
+            },
+            {
+              "id": "user-id-001",
+              "name": "userId",
+              "value": "={{ $json.messages[0].from }}",
+              "type": "string"
+            },
+            {
+              "id": "username-001",
+              "name": "userName",
+              "value": "={{ $json.contacts[0].profile.name }}",
+              "type": "string"
+            },
+            {
+              "id": "timestamp-001",
+              "name": "messageTime",
+              "value": "={{ $json.messages[0].timestamp }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-280, -180],
+      "id": "extract-text-data",
+      "name": "Extract Text Data"
+    },
+    {
+      "parameters": {
+        "resource": "media",
+        "operation": "mediaUrlGet",
+        "mediaGetId": "={{ $json.messages[0].audio.id }}"
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [-280, 0],
+      "id": "fetch-audio-url",
+      "name": "Fetch Audio URL",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "your-api-cred-id",
+          "name": "WhatsApp API Credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-40, 0],
+      "id": "download-audio-file",
+      "name": "Download Audio",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "auth-header-id",
+          "name": "Auth Header"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {
+          "language": "en",
+          "temperature": 0
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [200, 0],
+      "id": "transcribe-voice",
+      "name": "Voice to Text",
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-cred-id",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "voice-text-001",
+              "name": "userMessage",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            },
+            {
+              "id": "voice-user-001",
+              "name": "userId",
+              "value": "={{ $('Incoming Message').item.json.messages[0].from }}",
+              "type": "string"
+            },
+            {
+              "id": "voice-name-001",
+              "name": "userName",
+              "value": "={{ $('Incoming Message').item.json.contacts[0].profile.name }}",
+              "type": "string"
+            },
+            {
+              "id": "is-voice-001",
+              "name": "isVoiceInput",
+              "value": true,
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [440, 0],
+      "id": "format-voice-data",
+      "name": "Format Voice Data"
+    },
+    {
+      "parameters": {
+        "resource": "media",
+        "operation": "mediaUrlGet",
+        "mediaGetId": "={{ $json.messages[0].image.id }}"
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [-280, 200],
+      "id": "fetch-image-url",
+      "name": "Fetch Image URL",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "your-api-cred-id",
+          "name": "WhatsApp API Credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-40, 200],
+      "id": "download-image-file",
+      "name": "Download Image",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "auth-header-id",
+          "name": "Auth Header"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "text": "={{ $('Incoming Message').item.json.messages[0].image.caption || 'Analyze this image comprehensively. Describe what you see, identify objects, text, people (without naming them), actions, context, and any notable details.' }}",
+        "inputType": "base64",
+        "options": {
+          "maxTokens": 500
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [200, 200],
+      "id": "vision-analysis",
+      "name": "Vision Analysis",
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-cred-id",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "image-prompt-001",
+              "name": "userMessage",
+              "value": "=Image Analysis:\n---\n{{ $json.content }}\n---\n\nUser's Question: {{ $('Incoming Message').item.json.messages[0].image.caption || 'What can you tell me about this image?' }}",
+              "type": "string"
+            },
+            {
+              "id": "image-user-001",
+              "name": "userId",
+              "value": "={{ $('Incoming Message').item.json.messages[0].from }}",
+              "type": "string"
+            },
+            {
+              "id": "image-name-001",
+              "name": "userName",
+              "value": "={{ $('Incoming Message').item.json.contacts[0].profile.name }}",
+              "type": "string"
+            },
+            {
+              "id": "has-image-001",
+              "name": "hasImageContext",
+              "value": true,
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [440, 200],
+      "id": "format-image-data",
+      "name": "Format Image Data"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [680, 0],
+      "id": "merge-inputs",
+      "name": "Merge All Inputs"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.userMessage }}",
+        "options": {
+          "systemMessage": "=You are an intelligent and helpful AI assistant named SmartBot.\n\nKey Capabilities:\n- Natural conversation with context awareness\n- Multilingual support\n- Task assistance and problem-solving\n- Information retrieval and explanation\n- Creative content generation\n\nConversation Context:\n- User: {{ $json.userName }}\n- Current Time: {{ $now.format('MMMM dd, yyyy HH:mm:ss') }}\n- Input Type: {{ $json.isVoiceInput ? 'Voice Message' : ($json.hasImageContext ? 'Image with Caption' : 'Text Message') }}\n\nInstructions:\n1. Be conversational, friendly, and concise\n2. Use the user's name naturally when appropriate\n3. For voice inputs, respond in a more conversational tone\n4. For image queries, reference the visual context directly\n5. Keep responses under 300 words unless more detail is specifically requested\n6. Use emojis sparingly and contextually\n7. If you need clarification, ask follow-up questions\n8. Maintain conversation history awareness"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [920, 0],
+      "id": "intelligent-agent",
+      "name": "AI Response Engine"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {
+          "temperature": 0.7,
+          "maxTokens": 800
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [860, 180],
+      "id": "llm-model",
+      "name": "GPT Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-cred-id",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "=chat_{{ $('Incoming Message').item.json.messages[0].from }}",
+        "contextWindowLength": 15
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [1000, 180],
+      "id": "conversation-memory",
+      "name": "Conversation Memory"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-voice-001",
+              "leftValue": "={{ $('Merge All Inputs').item.json.isVoiceInput }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1200, 0],
+      "id": "check-response-type",
+      "name": "Voice Input Check"
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "input": "={{ $json.output }}",
+        "options": {
+          "voice": "nova"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [1440, -120],
+      "id": "text-to-speech",
+      "name": "Generate Speech",
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-cred-id",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fix audio MIME type for WhatsApp compatibility\nconst items = $input.all();\n\nfor (const item of items) {\n  if (item.binary) {\n    for (const key of Object.keys(item.binary)) {\n      const binary = item.binary[key];\n      \n      // Convert mp3 to mpeg MIME type\n      if (binary.mimeType === 'audio/mp3') {\n        binary.mimeType = 'audio/mpeg';\n      }\n      \n      // Ensure proper file extension\n      if (!binary.fileName || !binary.fileName.endsWith('.mp3')) {\n        binary.fileName = 'voice_reply.mp3';\n      }\n    }\n  }\n}\n\nreturn items;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1680, -120],
+      "id": "fix-audio-format",
+      "name": "Fix Audio Format"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "your-phone-number-id",
+        "recipientPhoneNumber": "={{ $('Incoming Message').item.json.messages[0].from }}",
+        "messageType": "audio",
+        "mediaPath": "useMedian8n",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [1920, -120],
+      "id": "send-voice-reply",
+      "name": "Send Voice Reply",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "your-api-cred-id",
+          "name": "WhatsApp API Credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "your-phone-number-id",
+        "recipientPhoneNumber": "={{ $('Incoming Message').item.json.messages[0].from }}",
+        "textBody": "={{ $json.output }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [1440, 120],
+      "id": "send-text-reply",
+      "name": "Send Text Reply",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "your-api-cred-id",
+          "name": "WhatsApp API Credentials"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Incoming Message": {
+      "main": [
+        [
+          {
+            "node": "Route by Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Type": {
+      "main": [
+        [
+          {
+            "node": "Extract Text Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fetch Audio URL",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fetch Image URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Text Data": {
+      "main": [
+        [
+          {
+            "node": "Merge All Inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Audio URL": {
+      "main": [
+        [
+          {
+            "node": "Download Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Audio": {
+      "main": [
+        [
+          {
+            "node": "Voice to Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Voice to Text": {
+      "main": [
+        [
+          {
+            "node": "Format Voice Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Voice Data": {
+      "main": [
+        [
+          {
+            "node": "Merge All Inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Image URL": {
+      "main": [
+        [
+          {
+            "node": "Download Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Image": {
+      "main": [
+        [
+          {
+            "node": "Vision Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vision Analysis": {
+      "main": [
+        [
+          {
+            "node": "Format Image Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Image Data": {
+      "main": [
+        [
+          {
+            "node": "Merge All Inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge All Inputs": {
+      "main": [
+        [
+          {
+            "node": "AI Response Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Response Engine": {
+      "main": [
+        [
+          {
+            "node": "Voice Input Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Response Engine",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conversation Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Response Engine",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Voice Input Check": {
+      "main": [
+        [
+          {
+            "node": "Generate Speech",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Text Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Speech": {
+      "main": [
+        [
+          {
+            "node": "Fix Audio Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fix Audio Format": {
+      "main": [
+        [
+          {
+            "node": "Send Voice Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "your-unique-instance-id"
+  },
+  "tags": []
+}
