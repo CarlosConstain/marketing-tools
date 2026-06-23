@@ -1,0 +1,306 @@
+{
+  "name": "WhatsApp AI Chatbot + DeepSeek + Supabase CRM",
+  "nodes": [
+    {
+      "id": "webhook-in",
+      "name": "Webhook (Meta Cloud API)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "parameters": {
+        "path": "whatsapp-webhook",
+        "options": {
+          "responseMode": "responseNode",
+          "rawBody": true
+        }
+      }
+    },
+    {
+      "id": "verify-hub",
+      "name": "Verificar Webhook Meta",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "parameters": {
+        "conditions": {
+          "string": [
+            { "value1": "{{ $json.query?.hub_verify_token }}", "operation": "equal", "value2": "{{ $credentials.metaVerifyToken }}" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "verify-response",
+      "name": "Responder Verificacion",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [650, 200],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "{{ $json.query?.['hub.challenge'] }}"
+      }
+    },
+    {
+      "id": "parse-message",
+      "name": "Parsear Mensaje",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 400],
+      "parameters": {
+        "language": "javascript",
+        "code": "const body = $json.body;\nconst entry = body?.entry?.[0];\nconst change = entry?.changes?.[0];\nconst value = change?.value;\nconst msg = value?.messages?.[0];\n\nif (!msg) return [{ noMessage: true }];\n\nreturn [{\n  remitente: msg.from,\n  nombre: value?.contacts?.[0]?.profile?.name || 'Cliente',\n  mensaje: msg.text?.body || '',\n  msgId: msg.id,\n  tipo: msg.type,\n  timestamp: msg.timestamp\n}];"
+      }
+    },
+    {
+      "id": "check-message",
+      "name": "Tiene Mensaje?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 400],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            { "value1": "{{ $json.noMessage }}", "operation": "equal", "value2": true }
+          ]
+        }
+      }
+    },
+    {
+      "id": "ignore",
+      "name": "Ignorar (no mensaje)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1050, 500]
+    },
+    {
+      "id": "supabase-get-contact",
+      "name": "Buscar/crear contacto en Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1050, 300],
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "contactos",
+        "filters": {
+          "conditions": [
+            { "fieldName": "telefono", "condition": "eq", "searchValue": "{{ $json.remitente }}" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "supabase-upsert",
+      "name": "Crear contacto si no existe",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1250, 200],
+      "parameters": {
+        "operation": "create",
+        "tableId": "contactos",
+        "dataToSend": "defineBelow",
+        "fieldsToSend": {
+          "values": [
+            { "fieldName": "telefono", "value": "{{ $json.remitente }}" },
+            { "fieldName": "nombre", "value": "{{ $json.nombre }}" },
+            { "fieldName": "ultimo_mensaje", "value": "{{ $json.mensaje }}" },
+            { "fieldName": "estado", "value": "nuevo" },
+            { "fieldName": "fecha_ultimo_contacto", "value": "{{ new Date().toISOString() }}" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "get-history",
+      "name": "Obtener historial Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1250, 400],
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "conversaciones",
+        "filters": {
+          "conditions": [
+            { "fieldName": "telefono", "condition": "eq", "searchValue": "{{ $json.remitente }}" }
+          ]
+        },
+        "options": {
+          "sort": { "field": "created_at", "order": "DESC" },
+          "limit": 10
+        }
+      }
+    },
+    {
+      "id": "build-prompt",
+      "name": "Construir Prompt con Contexto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1450, 300],
+      "parameters": {
+        "language": "javascript",
+        "code": "const data = $input.all();\nconst mensaje = data.find(d => d.json.mensaje)?.json?.mensaje || '';\nconst nombre = data.find(d => d.json.nombre)?.json?.nombre || 'Cliente';\nconst historial = data.find(d => d.json.table === 'conversaciones')?.json?.results || [];\n\nlet contexto = historial.slice(0, 5).map(h => \n  `Cliente: ${h.mensaje}\\nBot: ${h.respuesta}`\n).join('\\n\\n');\n\nconst systemPrompt = `Eres un asistente de ventas profesional.\nResponde en espanol, se amable y directo.\nObjetivo: convertir interes en venta.\nNo inventes precios ni disponibilidad.\nDeriva a humano si no sabes algo.`;\n\nreturn {\n  prompt: `${systemPrompt}\\n\\nHistorial reciente:\\n${contexto}\\n\\nCliente (${nombre}): ${mensaje}\\nAsistente:`\n};"
+      }
+    },
+    {
+      "id": "deepseek-ai",
+      "name": "DeepSeek Chat",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1650, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepseek.com/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer {{ $credentials.deepseekApiKey }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "model", "value": "deepseek-chat" },
+            { "name": "messages", "value": "[{\"role\":\"system\",\"content\":\"Eres un asistente de ventas.\"},{\"role\":\"user\",\"content\":\"{{ $json.prompt }}\"}]" },
+            { "name": "temperature", "value": 0.7 },
+            { "name": "max_tokens", "value": 500 }
+          ]
+        },
+        "options": { "timeout": 30000 }
+      }
+    },
+    {
+      "id": "extract-response",
+      "name": "Extraer respuesta DeepSeek",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1850, 300],
+      "parameters": {
+        "language": "javascript",
+        "code": "const choice = $json?.choices?.[0];\nreturn {\n  respuesta: choice?.message?.content || 'Lo siento, no pude procesar tu mensaje.'\n};"
+      }
+    },
+    {
+      "id": "save-conversation",
+      "name": "Guardar en Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [2050, 300],
+      "parameters": {
+        "operation": "create",
+        "tableId": "conversaciones",
+        "dataToSend": "defineBelow",
+        "fieldsToSend": {
+          "values": [
+            { "fieldName": "telefono", "value": "{{ $json.remitente }}" },
+            { "fieldName": "mensaje", "value": "{{ $json.mensaje }}" },
+            { "fieldName": "respuesta", "value": "{{ $json.respuesta }}" },
+            { "fieldName": "origen", "value": "deepseek" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "update-contact",
+      "name": "Actualizar contacto en Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [2050, 450],
+      "parameters": {
+        "operation": "update",
+        "tableId": "contactos",
+        "id": "{{ $json.id }}",
+        "dataToSend": "defineBelow",
+        "fieldsToSend": {
+          "values": [
+            { "fieldName": "ultimo_mensaje", "value": "{{ $json.mensaje }}" },
+            { "fieldName": "ultima_respuesta", "value": "{{ $json.respuesta }}" },
+            { "fieldName": "fecha_ultimo_contacto", "value": "{{ new Date().toISOString() }}" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "send-whatsapp",
+      "name": "Enviar WhatsApp (Meta Cloud API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [2250, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v22.0/{{ $credentials.wabaPhoneNumberId }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer {{ $credentials.metaAccessToken }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "messaging_product", "value": "whatsapp" },
+            { "name": "to", "value": "{{ $json.remitente }}" },
+            { "name": "type", "value": "text" },
+            { "name": "text", "value": "{\"preview_url\":false,\"body\":\"{{ $json.respuesta }}\"}" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "webhook-ok",
+      "name": "Responder 200 OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2450, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\":\"ok\"}"
+      }
+    }
+  ],
+  "connections": {
+    "webhook-in": { "main": [[ { "node": "verify-hub", "type": "main", "index": 0 } ]] },
+    "verify-hub": {
+      "main": [
+        [{ "node": "verify-response", "type": "main", "index": 0 }],
+        [{ "node": "parse-message", "type": "main", "index": 0 }]
+      ]
+    },
+    "parse-message": { "main": [[ { "node": "check-message", "type": "main", "index": 0 } ]] },
+    "check-message": {
+      "main": [
+        [{ "node": "ignore", "type": "main", "index": 0 }],
+        [{ "node": "supabase-get-contact", "type": "main", "index": 0 }]
+      ]
+    },
+    "supabase-get-contact": {
+      "main": [
+        [{ "node": "supabase-upsert", "type": "main", "index": 0 }],
+        [{ "node": "get-history", "type": "main", "index": 0 }]
+      ]
+    },
+    "get-history": { "main": [[ { "node": "build-prompt", "type": "main", "index": 0 } ]] },
+    "supabase-upsert": { "main": [[ { "node": "build-prompt", "type": "main", "index": 0 } ]] },
+    "build-prompt": { "main": [[ { "node": "deepseek-ai", "type": "main", "index": 0 } ]] },
+    "deepseek-ai": { "main": [[ { "node": "extract-response", "type": "main", "index": 0 } ]] },
+    "extract-response": {
+      "main": [[
+        { "node": "save-conversation", "type": "main", "index": 0 },
+        { "node": "update-contact", "type": "main", "index": 0 }
+      ]]
+    },
+    "save-conversation": { "main": [[ { "node": "send-whatsapp", "type": "main", "index": 0 } ]] },
+    "update-contact": { "main": [[ { "node": "send-whatsapp", "type": "main", "index": 0 } ]] },
+    "send-whatsapp": { "main": [[ { "node": "webhook-ok", "type": "main", "index": 0 } ]] }
+  },
+  "pinData": {},
+  "versionId": "1.0",
+  "active": true,
+  "settings": {},
+  "tags": [],
+  "staticData": null
+}

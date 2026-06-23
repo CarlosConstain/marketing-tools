@@ -1,0 +1,170 @@
+{
+  "name": "WhatsApp Chatbot + DeepSeek AI",
+  "nodes": [
+    {
+      "id": "webhook-in",
+      "name": "Webhook (Evolution API / Z-API)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "parameters": {
+        "path": "whatsapp-webhook",
+        "options": {
+          "responseMode": "responseNode"
+        }
+      }
+    },
+    {
+      "id": "extract-message",
+      "name": "Extraer Mensaje",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "mensaje",
+              "value": "{{ $json.body.message?.conversation || $json.body.message?.text || $json.body.data?.message || $json.mensaje }}"
+            },
+            {
+              "name": "remitente",
+              "value": "{{ $json.body.remoteJid || $json.body.from || $json.body.data?.from || $json.remitente }}"
+            },
+            {
+              "name": "nombre",
+              "value": "{{ $json.body.pushName || $json.body.data?.pushName || $json.nombre }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "history-redis",
+      "name": "Obtener Historial (Redis)",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "parameters": {
+        "operation": "get",
+        "key": "chat:{{ $json.remitente }}"
+      }
+    },
+    {
+      "id": "build-prompt",
+      "name": "Construir Prompt + Contexto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300],
+      "parameters": {
+        "language": "javascript",
+        "code": "// Sistema: Eres un asistente de ventas y atencion al cliente.\n// Responde de forma amable, profesional y en espanol.\n// Si no sabes algo, deriva a un humano.\n\nconst historial = $input.all()[0]?.json?.historial || '';\nconst mensaje = $input.all()[0]?.json?.mensaje || '';\nconst nombre = $input.all()[0]?.json?.nombre || 'Cliente';\n\nconst systemPrompt = `Eres un asistente de atencion al cliente para un negocio.\n\nReglas:\n- Responde siempre en espanol.\n- Se amable, profesional y empatico.\n- Si preguntan por precio, responde con informacion general.\n- Si preguntan algo que no sabes, di: \"Permiteme consultar con un asesor humano\" y deriva.\n- No inventes precios ni disponibilidad.\n- Manten las respuestas cortas (max 3 parrafos).\n- Usa el nombre del cliente cuando sea posible.\n- Objetivo: convertir interes en venta.`;\n\nconst historialReciente = historial ? `Historial de la conversacion:\n${historial.slice(-1000)}\\n\\n` : '';\n\nreturn {\n  prompt: `${systemPrompt}\\n\\n${historialReciente}Cliente (${nombre}): ${mensaje}\\n\\nAsistente:`\n};"
+      }
+    },
+    {
+      "id": "deepseek-ai",
+      "name": "DeepSeek AI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1050, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepseek.com/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer {{ $credentials.deepseekApiKey }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "model", "value": "deepseek-chat" },
+            { "name": "messages", "value": "[{\"role\":\"system\",\"content\":\"Eres un asistente de ventas.\"},{\"role\":\"user\",\"content\":\"{{ $json.prompt }}\"}]" },
+            { "name": "temperature", "value": 0.7 },
+            { "name": "max_tokens", "value": 500 }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      }
+    },
+    {
+      "id": "save-history",
+      "name": "Guardar Historial (Redis)",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [1250, 300],
+      "parameters": {
+        "operation": "set",
+        "key": "chat:{{ $json.remitente }}",
+        "value": "{{ $json.historial }}\\nCliente: {{ $json.mensaje }}\\nBot: {{ $json.respuesta }}",
+        "ttl": 86400
+      }
+    },
+    {
+      "id": "send-whatsapp",
+      "name": "Enviar WhatsApp (Evolution API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1450, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "{{ $credentials.evolutionApiUrl }}/message/sendText/{{ $credentials.evolutionInstance }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apiKey", "value": "{{ $credentials.evolutionApiKey }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "number", "value": "{{ $json.remitente }}" },
+            { "name": "text", "value": "{{ $json.respuesta }}" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "webhook-response",
+      "name": "Responder Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1650, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\":\"ok\",\"message\":\"recibido\"}"
+      }
+    }
+  ],
+  "connections": {
+    "webhook-in": { "main": [[ { "node": "extract-message", "type": "main", "index": 0 } ]] },
+    "extract-message": { "main": [[ { "node": "history-redis", "type": "main", "index": 0 } ]] },
+    "history-redis": { "main": [[ { "node": "build-prompt", "type": "main", "index": 0 } ]] },
+    "build-prompt": { "main": [[ { "node": "deepseek-ai", "type": "main", "index": 0 } ]] },
+    "deepseek-ai": { "main": [[ { "node": "save-history", "type": "main", "index": 0 } ]] },
+    "save-history": { "main": [[ { "node": "send-whatsapp", "type": "main", "index": 0 } ]] },
+    "send-whatsapp": { "main": [[ { "node": "webhook-response", "type": "main", "index": 0 } ]] }
+  },
+  "pinData": {},
+  "versionId": "1.0",
+  "active": true,
+  "settings": {},
+  "tags": [],
+  "credential": {
+    "deepseekApiKey": { "id": "__DEEPSEEK_API_KEY__", "name": "DeepSeek API Key" },
+    "evolutionApiKey": { "id": "__EVOLUTION_API_KEY__", "name": "Evolution API Key" },
+    "evolutionApiUrl": { "id": "__EVOLUTION_API_URL__", "name": "Evolution API URL" },
+    "evolutionInstance": { "id": "__EVOLUTION_INSTANCE__", "name": "Evolution Instance Name" }
+  },
+  "staticData": null
+}
